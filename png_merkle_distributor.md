@@ -26,4 +26,4 @@ claim_amount = amount_in_merkle_tree - claim_status.claimed_amount
 ## 团队
 
 Penguin Finance [website](png.fi) [twitter](https://twitter.com/png_fi)  
-bunnyducky [website](https://bunnyducky.com/) [twitter](https://twitter.com/BunnyDuckyHQ)
+Bunny Ducky [website](https://bunnyducky.com/) [twitter](https://twitter.com/BunnyDuckyHQ)
