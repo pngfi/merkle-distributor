@@ -9,7 +9,7 @@ saber 的空投方案会对每天空投的地址和数量生成一棵新的 merk
 ![saber空投方式](images/old_distributor.png)
 <br/>
 
-改进后的空投方案，在第一次空投时与前者做法相同，都是将所有的地址和数量生成 merkle 树，并用该 merkle root 在合约中创建一个 distributor 实例。当第二次又发起一次空投时，在生成 merkle 树时，地址对应的数量需要进行累加。举个例子，地址 A 在第一天空投了 100，第二天又对地址 A 空投了 200，则第二天地址 A 对应的数量为 300。新生成的 merkle 树不再创建一个新的 distributor 实例，而是更新第一个创建的 distributor 中的 merkle root。
+改进后的空投方案，在第一次空投时与前者做法相同，都是将所有的地址和数量生成 merkle 树，并用该 merkle root 在合约中创建一个 distributor 实例。当第二次又发起一次空投时，在生成 merkle 树时，地址对应的数量需要进行累加。举个例子，地址 A 在第一天空投了 100，第二天又对地址 A 空投了 200，则第二天地址 A 对应的数量为 300。新生成的 merkle 树不再创建一个新的 distributor 实例，而是更新第一次创建的 distributor 中的 merkle root。
 
 ![png-merkle-distributor](images/new_merkle.png)
 
