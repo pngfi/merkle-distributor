@@ -1,45 +1,29 @@
-# 一个可持续分发空投的merkle-distributor
+# 一个可累计分发空投的 merkle-distributor
 
-本文将介绍PNG团队基于[Uniswap](https://github.com/Uniswap/merkle-distributor) 和
-[saber](https://github.com/saber-hq/merkle-distributor) 开源的merkle-distributor的一个改进版本
+当项目方需要针对大量用户发起空投时，一般采用将空投用户的地址存入合约中，由用户来发起认领。但在空投地址较多的场景下，该方式将产生大量存储成本，在 solana 中，被称之为 rent。目前 solana 上普遍采用[saber](https://github.com/saber-hq/merkle-distributor) 开源的 merkle-distributor。其原理是将所有空投地址生成一个 merkle root 存入合约中，用户发起认领时，需提供 merkle 证明。但该方案在项目方需要多次对用户空投、且每次空投地址存在大量重复场景下，用户必须一笔一笔进行认领，无法批量执行，其操作上较为繁琐。此外，一笔一笔操作也会产生大量的交易手续费，使得空投对用户的吸引力降低。
 
-## 前言
-上个月，我们与[bunnyducky](https://app.bunnyducky.com/) 合作的bonding项目上线之后，bunnyducky做了一个空投活动。
-该活动基于用户farm的金额，每天空投一定数量的sbud token，空投的实现方式基于merkle-distributor。  
-活动上线后，我们的社区不断接到用户反馈空投的体验太差，其中大部分的反馈可以归结到2点。  
-1.用户每天都需要claim一次空投，比较麻烦。2.有的用户由于farm的金额较少，每天claim获得的token价值甚至不够覆盖gas费。
+## 改进方案
 
-## 解决方案
-我们通过调研和审查代码发现，用户体验差的主要原因在于我们的空投方式是每天一次空投，而且每次空投都重新提交一棵merkle tree
-![](images/old distributor.png)
-<div style="text-align: center;">旧的空投方式</div>
+saber 的空投方案会对每天空投的地址和数量生成一棵新的 merkle 树，并在合约中创建一个对应的的 distributor 实例。每个空投地址都有一个对应的`claim_status`记录是否已经领取，该状态关联一个唯一的 distributor 实例。
 
-于是我们开始着手改进空投机制。  
-最初我们团队尝试在前端将多笔交易打包合并来解决这个问题，但是由于proof需要的字节数量比较多，在打包2-3笔交易之后就会超出交易容量。  
-后来我们也尝试将proof的字节缩短从而打包更多交易，但是这种方式也没能带来多大的性能提升，而且还牺牲了至关重要的安全性。  
-最后我们找到了解决方案：[png-merkle-distributor](https://github.com/pngfi/merkle-distributor)
+![saber空投方式](images/old_distributor.png)
+<br/>
 
-![](images/new merkle.png)
-<div style="text-align: center;">png-merkle-distributor</div>
+改进后的空投方案，在第一次空投时与前者做法相同，都是将所有的地址和数量生成 merkle 树，并用该 merkle root 在合约中创建一个 distributor 实例。当第二次又发起一次空投时，在生成 merkle 树时，地址对应的数量需要进行累加。举个例子，地址 A 在第一天空投了 100，第二天又对地址 A 空投了 200，则第二天地址 A 对应的数量为 300。新生成的 merkle 树不再创建一个新的 distributor 实例，而是更新第一个创建的 distributor 中的 merkle root。
 
-这是一个可以更新root的merkle-distributor，同时在用户的claim_status里面记录用户的历史claimed数量。有了这样的设计之后，
-项目方每天发布空投，只需要更新一下merkle树的root即可，但是需要注意的是merkle树的叶子节点是由用户地址+历史可claim的总量构成，
-每天需要更新proof数量是最新的总量，由于我们在claim_status里面记录了claimed数量，所以用户真实的可领取数量为
+![png-merkle-distributor](images/new_merkle.png)
 
-<code>  
-claim_amount = amount_proof-claim_status.claimed_amount  
-</code>
+此外，saber 的`claim_status`用一个布尔类型记录了空投是否已经领取。改进后的方案将其换成了`claimed_amount`来标记该地址已经领取了多少数量，每一次用户可领取的数量为，当前 merkle 树中 amount 减去该数量，即：
 
-当用户觉得可claim的数量太少，那么他们可以等待几天，等claim数量更多了再领取。  
-通过这个方案我们成功的解决了上述问题。
+```
+claim_amount = amount_in_merkle_tree - claim_status.claimed_amount
+```
 
-## 适合的场景
-当项目方需要多次空投的时候，本方案会拥有更好的用户体验，而且能更好的节省项目方的成本。在旧的方案中，一次空投就需要部署一次合约，
-而我们的方案只需要部署一次，还可以进行重复使用。
+该方案使得用户可在项目方多次空投后进行批量领取，从而一举解决了前面提到的操作繁琐以及手续费的问题。
+
+最后，再次说明该方案适用于项目方需要分多次进行空投，且每次空投的用户地址存在大量重复的场景下。
 
 ## 团队
+
 Penguin Finance [website](png.fi) [twitter](https://twitter.com/png_fi)  
 bunnyducky [website](https://bunnyducky.com/) [twitter](https://twitter.com/BunnyDuckyHQ)
-
-
-
